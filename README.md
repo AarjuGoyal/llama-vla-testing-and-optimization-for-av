@@ -48,6 +48,13 @@ Optimized LLM inference achieving **2.9x throughput improvement** through profil
 3. **Applied optimization:** Batch size increase to trigger WMMA (Tensor Core) kernels
 4. **Validated results:** Re-profiled to confirm kernel transition
 
+# LICENSE
+
+MIT License
+
+This project contains optimization scripts and analysis.
+The Llama 3.2 model is governed by Meta's license (see llama-models repo).
+
 ## Autonomous Driving Context
 
 This work validates computational feasibility of LLM reasoning in Vision-Language-Action (VLA) systems for autonomous vehicles...
