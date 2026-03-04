@@ -25,9 +25,9 @@ dim_k = 1024
 dim_v = 1024
 X = torch.randn(batch_size * seq_len, hidden_dim, dtype=torch.bfloat16, device="cuda")
 
-w_q = torch.randn(hidden_dim, dim_q, dtype=torch.bfloat16, device='cuda')  # Full 24 heads
-w_k = torch.randn(hidden_dim, dim_k, dtype=torch.bfloat16, device='cuda')  # 8 kv heads
-w_v = torch.randn(hidden_dim, dim_v, dtype=torch.bfloat16, device='cuda')  # 8 kv heads
+w_q = torch.randn(dim_q, hidden_dim, dtype=torch.bfloat16, device='cuda')  # Full 24 heads
+w_k = torch.randn(dim_k, hidden_dim, dtype=torch.bfloat16, device='cuda')  # 8 kv heads
+w_v = torch.randn(dim_v, hidden_dim, dtype=torch.bfloat16, device='cuda')  # 8 kv heads
 
 print(f"===Weights before===")
 print(f"w_q shape: {w_q.shape}, w_k shape: {w_k.shape}, w_v shape: {w_v.shape}")
@@ -36,7 +36,7 @@ print(f"GPU memory reserved: {torch.cuda.memory_reserved() / 1e9:.2f} GB")
 
 
 # Fuse weights
-w_qkv = torch.cat([w_q, w_k, w_v], dim=1).contiguous()  # [5120, 3072]
+w_qkv = torch.cat([w_q, w_k, w_v], dim=0).contiguous()  # [5120, 3072]
 print(f"size of w_qkv weight matrix {w_qkv.shape}")
 
 print(f"\n=== Dimension Check ===")
@@ -46,7 +46,7 @@ print(f"Expected output: [{X.shape[0]}, {w_qkv.shape[1]}]")  # Should be [16, 51
 
 # Manually verify one element
 print(f"\n=== Manual verification ===")
-expected_00 = (X[0, :] @ w_qkv[:, 0]).item()
+expected_00 = (X[0, :] @ w_qkv[0,:]).item()
 print(f"Expected output[0,0] from PyTorch: {expected_00}")
 
 
@@ -55,9 +55,9 @@ print(f" Size of output from the cuda kernel {output.shape}")
 
 print(f"Actual output[0,0] from kernel: {output[0, 0].item()}")
 print(f"Difference: {abs(expected_00 - output[0, 0].item())}")
-Q = torch.matmul(X, w_q)
-K = torch.matmul(X, w_k)
-V = torch.matmul(X, w_v)
+Q = torch.matmul(X, w_q.T)
+K = torch.matmul(X, w_k.T)
+V = torch.matmul(X, w_v.T)
 torch.cuda.synchronize()
 print(f"GPU memory allocated: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 print(f"GPU memory reserved: {torch.cuda.memory_reserved() / 1e9:.2f} GB")

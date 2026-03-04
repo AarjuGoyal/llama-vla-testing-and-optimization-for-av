@@ -13,15 +13,11 @@ N: Sum of dimensions of Q, K, V q_dim + k_dim + v_dim. With MHA all equal, with 
 */
 __global__ void fused_qkv_kernel(
     const __nv_bfloat16* __restrict__ input, //[M , K]
-    const __nv_bfloat16* __restrict__ weight, // [K, N]
+    const __nv_bfloat16* __restrict__ weight, // [N, K] We need to perform a XA^T operation
     __nv_bfloat16* __restrict__ output,      // [M, N]
-    int M, int N, int K //N dimension of input, E hidden dimension/ embedding dimension, D is addition of Q, K, V dimension
+    int M, int N, int K
 )
 {
-    if (blockIdx.x == 0 && blockIdx.y == 0 && threadIdx.x == 0 && threadIdx.y == 0) {
-        printf("CUDA Kernel - M: %d, N: %d, K: %d\n", M, N, K);
-    }
-    
     const uint x = blockIdx.x * blockDim.x + threadIdx.x;
     const uint y = blockIdx.y * blockDim.y + threadIdx.y;
     
@@ -32,7 +28,8 @@ __global__ void fused_qkv_kernel(
         float sum = 0.0f;
         for (uint i=0; i< K; i++ )
         {
-            sum += __bfloat162float(input[x*K + i]) *__bfloat162float(weight[i*N + y]);
+            // sum += __bfloat162float(input[x*K + i]) *__bfloat162float(weight[i*N + y]);
+            sum += __bfloat162float(input[x*K + i]) *__bfloat162float(weight[y*K + i]); //Also accessing row
         }
         output[x*N + y] = __float2bfloat16(sum);
     }
@@ -47,7 +44,7 @@ torch::Tensor fused_qkv_cuda(
 {
     const int M = input.size(0); //batch * seq
     const int K = input.size(1); // hidden_dim
-    const int N = weight.size(1);
+    const int N = weight.size(0);
 
     auto output = torch::zeros({M,N}, input.options());
 
